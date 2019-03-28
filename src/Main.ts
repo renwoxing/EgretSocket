@@ -27,9 +27,12 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
+const enum MessageType {
+    beatHeart = 1,
+    other
+}
+
 class Main extends egret.DisplayObjectContainer {
-
-
 
     public constructor() {
         super();
@@ -38,6 +41,7 @@ class Main extends egret.DisplayObjectContainer {
 
     private socketManager: egret.WebSocket;
     private sendButton: eui.Label;
+    private timer: egret.Timer;
 
     private onAddToStage(event: egret.Event) {
 
@@ -50,11 +54,11 @@ class Main extends egret.DisplayObjectContainer {
         })
 
         egret.lifecycle.onPause = () => {
-            egret.ticker.pause();
+            // egret.ticker.pause();
         }
 
         egret.lifecycle.onResume = () => {
-            egret.ticker.resume();
+            // egret.ticker.resume();
         }
 
         this.runGame().catch(e => {
@@ -62,6 +66,9 @@ class Main extends egret.DisplayObjectContainer {
         })
 
 
+        this.timer = new egret.Timer(2000, 0);
+        this.timer.addEventListener(egret.TimerEvent.TIMER, this.sendBeatHeart, this);
+        this.timer.addEventListener(egret.TimerEvent.COMPLETE, this.timerComFunc, this);
 
     }
 
@@ -129,14 +136,19 @@ class Main extends egret.DisplayObjectContainer {
         var msg = this.socketManager.readUTF();
         console.log(msg);
         var obj = JSON.parse(msg);
-        console.log(obj.name);
-        console.log(obj.age);
-        console.log(obj.address);
-        
+        if (obj.messageType == MessageType.beatHeart) {
+            console.log("心跳");
+        } else if (obj.messageType == MessageType.other) {
+            console.log(obj.name);
+            console.log(obj.age);
+            console.log(obj.address);
+        }
     }
 
     private onSocketOpen(e: egret.Event) {
         console.log("open socket");
+
+        this.timer.start();
     }
 
     private onSocketClose(e: egret.Event) {
@@ -153,9 +165,9 @@ class Main extends egret.DisplayObjectContainer {
 
         if (!this.socketManager.connected) {
             this.socketManager.connect("echo.websocket.org", 80);
-            return ;
+            return;
         }
-        
+
         // var byte: egret.ByteArray = new egret.ByteArray();
         // byte.writeUTF("Hello egret WebSockt");
         // byte.writeBoolean(false);
@@ -166,6 +178,7 @@ class Main extends egret.DisplayObjectContainer {
         // this.socketManager.flush();
 
         var obj = {
+            messageType: MessageType.other,
             name: "qingsong",
             age: 100,
             address: "Beijing China"
@@ -176,5 +189,27 @@ class Main extends egret.DisplayObjectContainer {
         this.socketManager.writeUTF(msg);
         this.socketManager.flush();
 
+    }
+
+    private sendBeatHeart() {
+        console.log("发送心跳");
+
+        if (!this.socketManager.connected) {
+            this.socketManager.connect("echo.websocket.org", 80);
+            return;
+        }
+
+        var obj = {
+            messageType: MessageType.beatHeart,
+        }
+
+        var msg = JSON.stringify(obj);
+        console.log(msg);
+        this.socketManager.writeUTF(msg);
+        this.socketManager.flush();
+    }
+
+    private timerComFunc() {
+        console.log("计时结束");
     }
 }
